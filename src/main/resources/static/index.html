@@ -1,0 +1,302 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Interview Scheduler</title>
+  <style>
+    :root { font-family: system-ui, -apple-system, sans-serif; color: #0f172a; background: #f8fafc; }
+    body { margin: 0; padding: 20px; }
+    h1 { margin-top: 0; }
+    .grid { display: grid; gap: 12px; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); }
+    .card { background: #fff; padding: 14px 16px; border-radius: 10px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); border: 1px solid #e2e8f0; }
+    .muted { color: #475569; font-size: 0.95rem; }
+    form { display: grid; gap: 8px; margin-top: 8px; }
+    label { display: flex; flex-direction: column; gap: 4px; font-size: 0.95rem; }
+    input, select, button { padding: 10px; font-size: 1rem; border-radius: 8px; border: 1px solid #cbd5e1; }
+    button { cursor: pointer; background: #2563eb; color: #fff; border: none; transition: background 0.2s; }
+    button:hover { background: #1d4ed8; }
+    button.secondary { background: #e2e8f0; color: #0f172a; }
+    .row { display: flex; gap: 8px; flex-wrap: wrap; }
+    table { width: 100%; border-collapse: collapse; font-size: 0.95rem; }
+    th, td { padding: 8px; border-bottom: 1px solid #e2e8f0; text-align: left; }
+    th { background: #f1f5f9; }
+    .pill { display: inline-flex; gap: 6px; align-items: center; padding: 4px 8px; background: #e0f2fe; color: #075985; border-radius: 999px; font-size: 0.85rem; }
+    .status { font-weight: 600; }
+    .stack { display: grid; gap: 8px; }
+    pre { background: #0b1021; color: #c7f3ff; padding: 10px; border-radius: 6px; overflow: auto; font-size: 0.9rem; }
+    .heading-row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; justify-content: space-between; }
+  </style>
+</head>
+<body>
+  <div class="heading-row">
+    <div>
+      <h1>Interview Scheduler</h1>
+      <div class="muted">Teacher = Interviewer | Student = Candidate</div>
+    </div>
+    <div class="stack" style="min-width: 240px;">
+      <label>Base URL
+        <input id="baseUrl" value="" placeholder="http://localhost:8080 (blank = same origin)" />
+      </label>
+      <button class="secondary" onclick="clearOutput()">Clear Output</button>
+      <div class="muted" id="statusText">Idle</div>
+    </div>
+  </div>
+
+  <div class="grid">
+    <section class="card">
+      <h2>Teacher (Interviewer)</h2>
+      <div class="muted">Create a teacher and set weekly availability rules.</div>
+      <form id="createInterviewer">
+        <label>Teacher name <input name="name" placeholder="Alex" required /></label>
+        <label>Weekly limit <input name="weeklyInterviewLimit" type="number" min="1" value="5" required /></label>
+        <button type="submit">Create Teacher</button>
+      </form>
+      <form id="addAvailability">
+        <label>Teacher ID <input name="interviewerId" id="teacherIdField" type="number" required /></label>
+        <label>Day of week
+          <select name="dayOfWeek">
+            <option>MONDAY</option><option>TUESDAY</option><option>WEDNESDAY</option>
+            <option>THURSDAY</option><option>FRIDAY</option><option>SATURDAY</option><option>SUNDAY</option>
+          </select>
+        </label>
+        <div class="row">
+          <label>Start (HH:MM) <input name="startTime" value="09:00" required /></label>
+          <label>End (HH:MM) <input name="endTime" value="12:00" required /></label>
+          <label>Slot minutes <input name="slotDurationMinutes" type="number" min="15" value="30" required /></label>
+        </div>
+        <button type="submit">Add Availability</button>
+      </form>
+      <form id="generateSlots">
+        <label>Teacher ID <input name="interviewerId" id="teacherIdField2" type="number" required /></label>
+        <button type="submit">Generate Slots (next 14 days)</button>
+      </form>
+    </section>
+
+    <section class="card">
+      <h2>Student (Candidate)</h2>
+      <div class="muted">Pick a slot and book. You can move a booking to a new slot.</div>
+      <form id="createBooking">
+        <label>Student email <input name="candidateEmail" type="email" placeholder="student@school.com" required /></label>
+        <label>Slot ID <input name="slotId" id="slotIdField" type="number" required /></label>
+        <button type="submit">Book Slot</button>
+      </form>
+      <form id="updateBooking">
+        <label>Booking ID <input name="bookingId" id="bookingIdField" type="number" required /></label>
+        <label>New Slot ID <input name="slotId" type="number" required /></label>
+        <button type="submit">Move Booking</button>
+      </form>
+      <form id="listBookingsByEmail">
+        <label>Student email <input name="candidateEmail" type="email" placeholder="student@school.com" required /></label>
+        <button type="submit" class="secondary">View my bookings</button>
+      </form>
+      <div id="studentBookingsWrap" class="muted"></div>
+    </section>
+
+    <section class="card" style="grid-column: 1/-1;">
+      <div class="heading-row">
+        <div>
+          <h2>Available Slots</h2>
+          <div class="muted">Cursor pagination with next cursor retained below.</div>
+        </div>
+        <form id="listSlots" class="row" style="align-items: flex-end;">
+          <label>Cursor (ISO) <input name="cursor" id="cursorField" placeholder="leave blank for now()" /></label>
+          <label>Limit <input name="limit" id="limitField" type="number" value="20" min="1" max="100" /></label>
+          <button type="submit">Refresh</button>
+          <button type="button" class="secondary" id="loadMoreBtn">Load more (next cursor)</button>
+        </form>
+      </div>
+      <div id="slotsTableWrap"></div>
+      <div class="muted" id="nextCursorText"></div>
+    </section>
+
+    <section class="card" style="grid-column: 1/-1;">
+      <h2>Output</h2>
+      <pre id="out"></pre>
+    </section>
+  </div>
+
+  <script>
+    const out = document.getElementById("out");
+    const baseInput = document.getElementById("baseUrl");
+    const slotsTableWrap = document.getElementById("slotsTableWrap");
+    const nextCursorText = document.getElementById("nextCursorText");
+    const statusText = document.getElementById("statusText");
+    const studentBookingsWrap = document.getElementById("studentBookingsWrap");
+
+    const state = {
+      lastTeacherId: null,
+      lastBookingId: null,
+      nextCursor: null,
+      slots: []
+    };
+
+    const setStatus = (text) => { statusText.textContent = text; };
+
+    const api = (path, options = {}) => {
+      const base = baseInput.value.trim() || window.location.origin;
+      setStatus("Calling " + path);
+      return fetch(base + path, {
+        headers: { "Content-Type": "application/json", ...(options.headers || {}) },
+        ...options
+      }).then(async (res) => {
+        const text = await res.text();
+        let data;
+        try { data = text ? JSON.parse(text) : null; } catch { data = text; }
+        if (!res.ok) throw { status: res.status, data };
+        setStatus("Idle");
+        return data;
+      }).catch((err) => {
+        setStatus("Error");
+        throw err;
+      });
+    };
+
+    const log = (label, data) => {
+      const time = new Date().toISOString();
+      out.textContent = `${time} ${label}:\n${JSON.stringify(data, null, 2)}\n\n` + out.textContent;
+    };
+    const handle = (fn) => (e) => {
+      e.preventDefault();
+      fn(e).catch((err) => log("Error", err));
+    };
+    const clearOutput = () => { out.textContent = ""; };
+    window.clearOutput = clearOutput;
+
+    const renderSlots = () => {
+      if (!state.slots.length) {
+        slotsTableWrap.innerHTML = '<div class="muted">No slots loaded yet.</div>';
+        return;
+      }
+      const rows = state.slots.map((s) => {
+        const remaining = s.remaining ?? (s.capacity ? s.capacity - s.bookedCount : "n/a");
+        return `<tr>
+          <td>${s.id}</td>
+          <td>${s.interviewerId}</td>
+          <td>${s.startTime}</td>
+          <td>${s.endTime}</td>
+          <td>${remaining}</td>
+          <td><button type="button" onclick="prefillSlot(${s.id})">Use</button></td>
+        </tr>`;
+      }).join("");
+      slotsTableWrap.innerHTML = `<table>
+        <thead><tr><th>Slot</th><th>Teacher</th><th>Start</th><th>End</th><th>Remaining</th><th></th></tr></thead>
+        <tbody>${rows}</tbody>
+      </table>`;
+    };
+    window.prefillSlot = (slotId) => {
+      document.getElementById("slotIdField").value = slotId;
+      log("Slot selected", { slotId });
+    };
+
+    const renderStudentBookings = (list) => {
+      if (!list || !list.length) {
+        studentBookingsWrap.innerHTML = '<div class="muted">No bookings found for this student.</div>';
+        return;
+      }
+      const rows = list.map((b) => `
+        <tr>
+          <td>${b.id}</td>
+          <td>${b.slotId}</td>
+          <td>${b.status}</td>
+        </tr>
+      `).join("");
+      studentBookingsWrap.innerHTML = `<table>
+        <thead><tr><th>Booking</th><th>Slot</th><th>Status</th></tr></thead>
+        <tbody>${rows}</tbody>
+      </table>`;
+    };
+
+    document.getElementById("createInterviewer").onsubmit = handle(async (e) => {
+      const form = new FormData(e.target);
+      const body = {
+        name: form.get("name"),
+        weeklyInterviewLimit: Number(form.get("weeklyInterviewLimit")),
+      };
+      const res = await api("/interviewers", { method: "POST", body: JSON.stringify(body) });
+      state.lastTeacherId = res.id;
+      document.getElementById("teacherIdField").value = res.id;
+      document.getElementById("teacherIdField2").value = res.id;
+      log("Teacher created", res);
+    });
+
+    document.getElementById("addAvailability").onsubmit = handle(async (e) => {
+      const form = new FormData(e.target);
+      const interviewerId = form.get("interviewerId");
+      const body = {
+        dayOfWeek: form.get("dayOfWeek"),
+        startTime: form.get("startTime"),
+        endTime: form.get("endTime"),
+        slotDurationMinutes: Number(form.get("slotDurationMinutes")),
+      };
+      const res = await api(`/interviewers/${interviewerId}/availability`, {
+        method: "POST",
+        body: JSON.stringify(body),
+      });
+      log("Availability added", res ?? { ok: true });
+    });
+
+    document.getElementById("generateSlots").onsubmit = handle(async (e) => {
+      const form = new FormData(e.target);
+      const interviewerId = form.get("interviewerId");
+      const res = await api(`/interviewers/${interviewerId}/slots/generate`, { method: "POST" });
+      log("Slots generated", res);
+    });
+
+    const fetchSlots = async (cursorValue) => {
+      const cursor = cursorValue ?? document.getElementById("cursorField").value;
+      const limit = document.getElementById("limitField").value || 20;
+      const params = new URLSearchParams();
+      if (cursor) params.append("cursor", cursor);
+      if (limit) params.append("limit", limit);
+      const res = await api(`/slots?${params.toString()}`);
+      state.slots = res.slots || [];
+      state.nextCursor = res.nextCursor;
+      nextCursorText.textContent = state.nextCursor ? `Next cursor: ${state.nextCursor}` : "End of list";
+      renderSlots();
+      log("Slots list", res);
+    };
+
+    document.getElementById("listSlots").onsubmit = handle(async () => fetchSlots());
+    document.getElementById("loadMoreBtn").onclick = handle(async () => {
+      if (!state.nextCursor) {
+        log("Info", "No next cursor available");
+        return;
+      }
+      await fetchSlots(state.nextCursor);
+    });
+
+    document.getElementById("createBooking").onsubmit = handle(async (e) => {
+      const form = new FormData(e.target);
+      const body = {
+        candidateEmail: form.get("candidateEmail"),
+        slotId: Number(form.get("slotId")),
+      };
+      const res = await api(`/bookings`, { method: "POST", body: JSON.stringify(body) });
+      state.lastBookingId = res.id;
+      document.getElementById("bookingIdField").value = res.id;
+      log("Booking created", res);
+    });
+
+    document.getElementById("updateBooking").onsubmit = handle(async (e) => {
+      const form = new FormData(e.target);
+      const bookingId = form.get("bookingId");
+      const body = { slotId: Number(form.get("slotId")) };
+      const res = await api(`/bookings/${bookingId}`, { method: "PUT", body: JSON.stringify(body) });
+      log("Booking updated", res);
+    });
+
+    document.getElementById("listBookingsByEmail").onsubmit = handle(async (e) => {
+      const form = new FormData(e.target);
+      const email = form.get("candidateEmail");
+      const res = await api(`/bookings?email=${encodeURIComponent(email)}`);
+      renderStudentBookings(res);
+      log("Bookings for student", res);
+    });
+
+    // initial render state
+    renderSlots();
+  </script>
+</body>
+</html>
+
