@@ -55,9 +55,10 @@ mvn test
 Runs against H2 via `src/test/resources/application-test.yml`; MySQL is not required for tests.
 
 ## Screens / diagrams
-Existing images:
-- ![Screen 1](img/1.png)
-- ![Screen 2](img/2.png)
-- ![Screen 3](img/3.png)
-- ![Screen 4](img/4.png)
+Existing images (permalinks):
+- ![Screen 1](https://github.com/Mayank8D/Vasitum/blob/1ffdd432f600cbb996442743d05ead255eca8705/img/1.jpg)
+- ![Screen 2](https://github.com/Mayank8D/Vasitum/blob/1ffdd432f600cbb996442743d05ead255eca8705/img/2.jpg)
+- ![Screen 3](https://github.com/Mayank8D/Vasitum/blob/1ffdd432f600cbb996442743d05ead255eca8705/img/3.jpg)
+- ![Flow](https://github.com/Mayank8D/Vasitum/blob/1ffdd432f600cbb996442743d05ead255eca8705/img/4.jpg)
+
 
